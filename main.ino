@@ -2,8 +2,8 @@
 #include <ESPAsyncWebServer.h>
 
 // กำหนด SSID และ Password ของ WiFi
-const char* ssid = "BP9";
-const char* password = "aaaaaaaa";
+const char* ssid = "BP9"; // <-- เปลี่ยนเป็น SSID ของคุณ
+const char* password = "aaaaaaaa"; // <-- เปลี่ยนเป็น Password ของคุณ
 
 // กำหนดขาที่ต่อกับเซ็นเซอร์วัดความชื้น
 const int sensorPin = A0;  
@@ -35,7 +35,7 @@ void setup() {
 
   // Route สำหรับหน้าแรก
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", "<html><head><title>ESP8266 Water Pump Control</title></head><body><h1>ESP8266 Water Pump Control</h1><p>Internet: <span id='internetStatus'>Loading...</span></p><p>Moisture: <span id='moisture'>Loading...</span></p><p>Pump Status: <span id='pumpStatus'>Loading...</span></p><button onclick='togglePump()'>Toggle Pump</button><script>setInterval(updateStatus, 1000);function updateStatus() {fetch('/status').then(response => response.json()).then(data => {document.getElementById('internetStatus').textContent = data.internetStatus;document.getElementById('moisture').textContent = data.moisture;document.getElementById('pumpStatus').textContent = data.pumpStatus;});}function togglePump() {fetch('/toggle', {method: 'POST'});}</script></body></html>");
+    request->send(200, "text/html", "<!DOCTYPE html><html><head><title>ESP8266 Water Pump Control</title></head><body><h1>ESP8266 Water Pump Control</h1><p>Internet: <span id='internetStatus'>Loading...</span></p><p>Moisture: <span id='moisture'>Loading...</span></p><p>Pump Status: <span id='pumpStatus'>Loading...</span></p><button onclick='togglePump()'>Toggle Pump</button><script>setInterval(updateStatus, 1000);function updateStatus() {fetch('/status').then(response => response.json()).then(data => {document.getElementById('internetStatus').textContent = data.internetStatus;document.getElementById('moisture').textContent = data.moisture;document.getElementById('pumpStatus').textContent = data.pumpStatus;});}function togglePump() {fetch('/toggle', {method: 'POST'});}</script></body></html>");
   });
 
   // Route สำหรับส่งข้อมูลสถานะ
@@ -76,8 +76,9 @@ void loop() {
 
 // ฟังก์ชันสำหรับตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
 void checkInternetConnection() {
+  IPAddress remote_ip; // ประกาศตัวแปร IPAddress
   // พยายามเชื่อมต่อกับ Google DNS server
-  if (WiFi.hostByName("8.8.8.8", 443) == 1) {
+  if (WiFi.hostByName("8.8.8.8", remote_ip) == 1) {  // ใช้ remote_ip ใน hostByName
     internetConnected = true;
     Serial.println("Internet connected");
   } else {
