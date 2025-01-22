@@ -1,5 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <FS.h> // เพิ่มสำหรับ SPIFFS
 
 // กำหนด SSID และ Password ของ WiFi
 const char* ssid = "BP9"; // <-- เปลี่ยนเป็น SSID ของคุณ
@@ -33,24 +34,38 @@ void setup() {
   // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
   checkInternetConnection();
 
+  // เริ่ม SPIFFS
+  if(!SPIFFS.begin()){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
   // Route สำหรับหน้าแรก
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", "<!DOCTYPE html><html><head><title>ESP8266 Water Pump Control</title></head><body><h1>ESP8266 Water Pump Control</h1><p>Internet: <span id='internetStatus'>Loading...</span></p><p>Moisture: <span id='moisture'>Loading...</span></p><p>Pump Status: <span id='pumpStatus'>Loading...</span></p><button onclick='togglePump()'>Toggle Pump</button><script>setInterval(updateStatus, 1000);function updateStatus() {fetch('/status').then(response => response.json()).then(data => {document.getElementById('internetStatus').textContent = data.internetStatus;document.getElementById('moisture').textContent = data.moisture;document.getElementById('pumpStatus').textContent = data.pumpStatus;});}function togglePump() {fetch('/toggle', {method: 'POST'});}</script></body></html>");
+    request->send(SPIFFS, "/index.html", "text/html");  // ส่งชื่อไฟล์ index.html
   });
 
   // Route สำหรับส่งข้อมูลสถานะ
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-    int sensorValue = analogRead(sensorPin);
-    String pumpState = digitalRead(relayPin) == HIGH ? "ON" : "OFF";
-    String internetState = internetConnected ? "Connected" : "Disconnected";
-    String json = "{\"moisture\": " + String(sensorValue) + ", \"pumpStatus\": \"" + pumpState + "\", \"internetStatus\": \"" + internetState + "\"}";
-    request->send(200, "application/json", json);
+    if (request->method() == HTTP_GET) {
+      int sensorValue = analogRead(sensorPin);
+      String pumpState = digitalRead(relayPin) == HIGH ? "ON" : "OFF";
+      String internetState = internetConnected ? "Connected" : "Disconnected";
+      String json = "{\"moisture\": " + String(sensorValue) + ", \"pumpStatus\": \"" + pumpState + "\", \"internetStatus\": \"" + internetState + "\"}";
+      request->send(200, "application/json", json);
+    } else {
+      request->send(404);  // ส่ง 404 Not Found
+    }
   });
 
   // Route สำหรับควบคุมปั๊มน้ำ
   server.on("/toggle", HTTP_POST, [](AsyncWebServerRequest *request){
-    digitalWrite(relayPin, !digitalRead(relayPin));
-    request->send(200, "text/plain", "OK");
+    if (request->method() == HTTP_POST) {
+      digitalWrite(relayPin, !digitalRead(relayPin));
+      request->send(200, "text/plain", "OK");
+    } else {
+      request->send(404);  // ส่ง 404 Not Found
+    }
   });
 
   // เริ่ม Web Server
@@ -76,9 +91,7 @@ void loop() {
 
 // ฟังก์ชันสำหรับตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
 void checkInternetConnection() {
-  IPAddress remote_ip; // ประกาศตัวแปร IPAddress
-  // พยายามเชื่อมต่อกับ Google DNS server
-  if (WiFi.hostByName("8.8.8.8", remote_ip) == 1) {  // ใช้ remote_ip ใน hostByName
+  if (WiFi.status() == WL_CONNECTED) {
     internetConnected = true;
     Serial.println("Internet connected");
   } else {
